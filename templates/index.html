@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>너만 모르는 우리들의 비밀</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .achievement-toast {
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9); color: #fff;
+            padding: 15px 40px; border-radius: 50px; border: 3px solid #ff69b4;
+            display: flex; align-items: center; gap: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5); z-index: 9999;
+            transition: top 0.5s ease-in-out;
+        }
+        .show-toast { top: 30px; }
+        .toast-text span { font-weight: bold; font-size: 18px; }
+        .character-img { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); filter: brightness(0.7); transform: scale(1); z-index: 1; }
+        .character-img.speaking { filter: brightness(1.1) drop-shadow(0 0 10px rgba(255,105,180,0.5)); transform: scale(1.15); z-index: 10; }
+    </style>
+</head>
+<body onload="userInteracted()">
+    
+    <audio id="bgm" loop>
+        <source src="{{ url_for('static', filename='sound/bgm.mp3') }}" type="audio/mpeg">
+    </audio>
+
+    <audio id="sfxPlayer">
+        <source src="" type="audio/mpeg">
+    </audio>
+
+    <div id="achToast" class="achievement-toast">
+        <div style="font-size:30px;">🏆</div>
+        <div class="toast-text">
+            <h4 style="margin:0; color:#ff69b4; font-size:14px;">도전과제 달성!</h4>
+            <span id="achTitle">제목</span>
+        </div>
+    </div>
+
+    <div class="doom-container">
+        <div class="doom-label">☠️ 파국 게이지 ☠️</div>
+        <div class="doom-bar" id="doomBar" style="width: 0%;"></div>
+    </div>
+
+    <div class="game-container" id="gameScreen" style="background-image: url('{{ url_for('static', filename='images/bg_office.png') }}');">
+        
+        {% if current_char %}
+        <div class="char-profile-card">
+            <div class="profile-header"><span class="profile-icon">♬</span> SPEAKER INFO</div>
+            <div class="profile-content">
+                <div class="p-name">{{ current_char.name }}</div>
+                <div class="p-desc">{{ current_char.desc }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="screen-area">
+            {% for img_name in scene.images %}
+                {% if img_name != 'bg_office.png' %}
+                    {% set is_speaking = (speaker_key and speaker_key in img_name) %}
+                    <img src="{{ url_for('static', filename='images/' + img_name) }}" 
+                         class="character-img {{ 'speaking' if is_speaking else '' }}" 
+                         alt="Character">
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <div class="ui-area">
+            <div class="choice-container" id="choices" style="display: none;">
+                {% for choice in scene.choices %}
+                <a href="{{ url_for('action', next_scene=choice.next) }}" class="choice-btn">{{ choice.text }}</a>
+                {% endfor %}
+            </div>
+
+            <div class="dialogue-box" onclick="skipTyping()">
+                <div class="name-tag">{{ scene.speaker }}</div>
+                <div class="text-content">
+                    <span id="type-text"></span><span class="cursor">|</span>
+                </div>
+                <div class="menu-buttons">
+                    <a href="{{ url_for('reset') }}">HOME</a>
+                    <span>SAVE</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const bgm = document.getElementById("bgm");
+
+        // --- 초기화 로직 ---
+        window.onload = function() {
+            // 1. BGM 처리
+            bgm.volume = 0.5;
+            const savedTime = sessionStorage.getItem("bgm_time");
+            if (savedTime) {
+                bgm.currentTime = parseFloat(savedTime);
+            }
+            bgm.play().catch(e => console.log("Click to play"));
+
+            // 2. 텍스트 효과 (타자기)
+            typeWriter(); 
+            
+            // 3. 데이터 로드
+            const achInfo = {{ achievement_info | tojson | safe }};
+            const effectData = {{ effect_data | tojson | safe }};
+
+            // 4. 화면 효과 적용
+            if (effectData) {
+                if (effectData.doom !== undefined) {
+                    document.getElementById('doomBar').style.width = effectData.doom + '%';
+                }
+                if (effectData.shake) {
+                    const screen = document.getElementById('gameScreen');
+                    screen.classList.add('shaking');
+                    setTimeout(() => { screen.classList.remove('shaking'); }, 500);
+                }
+                if (effectData.sfx) {
+                    playSfx(effectData.sfx);
+                }
+            }
+
+            // 5. 도전과제 처리
+            if (achInfo) {
+                let savedData = {};
+                try { savedData = JSON.parse(localStorage.getItem('secretGameAch')) || {}; } catch(e){}
+                
+                if (!savedData[achInfo.id]) {
+                    savedData[achInfo.id] = true;
+                    localStorage.setItem('secretGameAch', JSON.stringify(savedData));
+
+                    const toast = document.getElementById('achToast');
+                    document.getElementById('achTitle').innerText = achInfo.title;
+                    toast.classList.add('show-toast');
+                    setTimeout(() => { toast.classList.remove('show-toast'); }, 3000);
+                }
+            }
+        };
+
+        window.addEventListener("beforeunload", () => {
+            sessionStorage.setItem("bgm_time", bgm.currentTime);
+        });
+
+        function userInteracted() {
+            if (bgm.paused) { bgm.play(); }
+        }
+
+        // --- [핵심 수정] HTML 태그 지원 타자기 효과 ---
+        // safe 필터를 사용하여 HTML 태그가 그대로 들어오도록 함
+        const fullText = `{{ scene.bg_text if scene.bg_text else scene.text | safe }}`;
+        const typeElement = document.getElementById("type-text");
+        const choiceContainer = document.getElementById("choices");
+        let index = 0; let speed = 40; let isTyping = true;
+
+        function typeWriter() {
+            if (index < fullText.length) {
+                let char = fullText.charAt(index);
+                
+                // 만약 태그의 시작(<)을 만나면
+                if (char === '<') {
+                    let tag = "";
+                    // 닫는 괄호(>)가 나올 때까지 한번에 읽어서 tag 변수에 저장
+                    while (fullText.charAt(index) !== '>' && index < fullText.length) {
+                        tag += fullText.charAt(index);
+                        index++;
+                    }
+                    tag += '>'; // 닫는 괄호 추가
+                    index++;    // 인덱스 증가
+                    typeElement.innerHTML += tag; // 태그를 통째로 추가 (화면엔 안 보이고 효과만 적용됨)
+                    
+                    // 태그를 추가했으면 딜레이 없이 바로 다음 글자 출력 시도
+                    typeWriter(); 
+                } else {
+                    typeElement.innerHTML += char;
+                    index++;
+                    setTimeout(typeWriter, speed);
+                }
+            } else { 
+                finishTyping(); 
+            }
+        }
+
+        function finishTyping() {
+            isTyping = false; typeElement.innerHTML = fullText;
+            choiceContainer.style.display = "flex";
+            document.querySelector('.cursor').style.display = 'none';
+        }
+        function skipTyping() {
+            if (isTyping) { index = fullText.length; typeElement.innerHTML = fullText; finishTyping(); }
+        }
+
+        function playSfx(filename) {
+            if (!filename || filename === 'None') return;
+            var sfx = document.getElementById("sfxPlayer");
+            sfx.src = "{{ url_for('static', filename='sound/') }}" + filename;
+            sfx.volume = 0.8;
+            sfx.play().catch(e => console.log("SFX error", e));
+        }
+    </script>
+</body>
+</html>

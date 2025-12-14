@@ -1,0 +1,215 @@
+@import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap');
+
+body {
+    margin: 0; padding: 0; background-color: #222;
+    display: flex; justify-content: center; align-items: center;
+    height: 100vh; font-family: 'Nanum Gothic', sans-serif;
+    user-select: none;
+}
+
+.main-container, .game-container {
+    width: 1280px; height: 720px;
+    background-image: url('images/bg_office.png');
+    background-size: cover; position: relative;
+    box-shadow: 0 0 30px rgba(0,0,0,0.7); overflow: hidden;
+}
+
+.main-container {
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    box-shadow: inset 0 0 0 2000px rgba(0, 0, 0, 0.5); 
+}
+.title-logo {
+    font-size: 80px; font-weight: 900; color: #fff;
+    text-shadow: 0 0 20px #ff69b4, 0 0 40px #ff1493;
+    text-align: center; margin-bottom: 40px;
+    animation: heartbeat 1.5s infinite; cursor: pointer;
+}
+.btn-group { display: flex; gap: 20px; }
+.start-btn-large {
+    padding: 20px 60px; font-size: 30px; font-weight: bold;
+    color: white; background: #ff69b4;
+    border: 4px solid white; border-radius: 50px;
+    cursor: pointer; text-decoration: none; transition: 0.3s;
+    box-shadow: 0 0 20px rgba(255, 105, 180, 0.8);
+    animation: bounce 2s infinite;
+}
+.ach-btn {
+    padding: 20px 30px; font-size: 30px; background: #444;
+    color: white; border: 4px solid white; border-radius: 50px;
+    cursor: pointer; transition: 0.3s;
+}
+.start-btn-large:hover, .ach-btn:hover { transform: scale(1.1); }
+
+/* 모달 & 갤러리 스타일 */
+.modal-overlay {
+    display: none; position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%; background: rgba(0,0,0,0.8);
+    z-index: 1000; justify-content: center; align-items: center;
+}
+.modal-box {
+    width: 800px; height: 600px; background: white;
+    border-radius: 20px; padding: 30px; overflow-y: auto; position: relative;
+}
+.modal-close { position: absolute; top: 20px; right: 20px; font-size: 30px; cursor: pointer; color: #333; }
+.ach-item { display: flex; align-items: center; padding: 15px; border-bottom: 1px solid #eee; opacity: 0.5; }
+.ach-item.unlocked { opacity: 1; background: #fff0f5; }
+.ach-icon { font-size: 40px; margin-right: 20px; width: 50px; text-align: center; }
+.ach-text h3 { margin: 0; font-size: 20px; }
+.ach-text p { margin: 5px 0 0; color: #666; }
+
+/* 갤러리 그리드 */
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    padding: 10px;
+}
+.char-card {
+    background: #fff;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    border: 2px solid #ffb6c1;
+    text-align: center;
+    transition: transform 0.2s;
+}
+.char-card:hover { transform: translateY(-5px); box-shadow: 0 8px 15px rgba(255,105,180,0.2); }
+.char-card img {
+    width: 100%; height: 200px; object-fit: contain;
+    background: #fdf5f8; padding: 10px; box-sizing: border-box;
+}
+.char-info { padding: 15px; }
+.char-info h3 { margin: 0 0 5px 0; color: #ff69b4; font-size: 18px; }
+.char-info p { margin: 0; color: #666; font-size: 14px; line-height: 1.4; word-break: keep-all; }
+
+/* 게임 화면 */
+.char-profile-card {
+    position: absolute; top: 30px; left: 30px; width: 350px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 3px solid #ff69b4; border-radius: 15px;
+    box-shadow: 5px 5px 15px rgba(0,0,0,0.2); z-index: 10;
+    animation: slideDown 0.5s ease-out;
+}
+.profile-header { background: #ff69b4; color: white; padding: 8px 15px; font-weight: 800; display: flex; align-items: center; }
+.profile-content { padding: 15px 20px; }
+.p-name { font-size: 28px; font-weight: 800; color: #333; border-bottom: 2px dashed #ffb6c1; display: inline-block; }
+.p-desc { font-size: 18px; color: #555; font-weight: 600; margin-top: 5px; }
+
+.screen-area {
+    width: 100%; height: 100%; display: flex;
+    justify-content: space-around; align-items: flex-end;
+    padding: 0 50px; box-sizing: border-box;
+}
+.character-img {
+    height: 90%; max-width: 400px; object-fit: contain;
+    filter: drop-shadow(0 0 15px rgba(255,255,255,0.2)) brightness(0.7);
+    margin-bottom: 140px; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transform: scale(1); z-index: 1;
+}
+/* ... (위쪽 코드는 그대로 유지) ... */
+
+.character-img.speaking {
+    filter: brightness(1.1) drop-shadow(0 0 10px rgba(255, 105, 180, 0.5));
+    transform: scale(1.15); 
+    z-index: 10; /* 말할 때는 다른 캐릭터보다 앞으로 나옴 */
+}
+
+/* [수정됨] 대화창이 캐릭터 이미지보다 더 앞으로 나오도록 z-index 추가 */
+.dialogue-box {
+    position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%);
+    width: 90%; height: 200px; background: rgba(255, 245, 248, 0.95);
+    border: 4px solid #ff69b4; border-radius: 25px; padding: 30px 40px;
+    box-sizing: border-box; pointer-events: auto; cursor: pointer;
+    z-index: 20; /* ★★★ 여기를 추가했습니다! (10보다 큰 숫자) ★★★ */
+}
+
+/* ... (아래쪽 코드는 그대로 유지) ... */
+
+.ui-area { position: absolute; bottom: 0; width: 100%; height: 100%; pointer-events: none; }
+.choice-container {
+    position: absolute; right: 50px; top: 30%;
+    flex-direction: column; gap: 15px; pointer-events: auto; z-index: 20;
+}
+.choice-btn {
+    background: white; border: 3px solid #ff69b4;
+    padding: 15px 30px; border-radius: 15px;
+    text-decoration: none; color: #333; font-weight: bold; font-size: 20px;
+    min-width: 250px; text-align: center; animation: popIn 0.3s ease-out;
+}
+.choice-btn:hover { background: #ff69b4; color: white; transform: scale(1.05); }
+
+.dialogue-box {
+    position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%);
+    width: 90%; height: 200px; background: rgba(255, 245, 248, 0.95);
+    border: 4px solid #ff69b4; border-radius: 25px; padding: 30px 40px;
+    box-sizing: border-box; pointer-events: auto; cursor: pointer;
+}
+.name-tag {
+    position: absolute; top: -35px; left: 20px;
+    background: #ff69b4; color: white; padding: 10px 40px;
+    border-radius: 50px; font-size: 24px; font-weight: 800; border: 3px solid white;
+}
+.text-content { font-size: 26px; color: #333; margin-top: 15px; line-height: 1.6; font-weight: 600; min-height: 80px; }
+.cursor { display: inline-block; color: #ff69b4; font-weight: bold; animation: blink 0.8s infinite; margin-left: 2px; }
+.menu-buttons { position: absolute; bottom: 15px; right: 30px; font-size: 16px; font-weight: bold; }
+.menu-buttons a, .menu-buttons span { margin-left: 20px; color: #ff69b4; text-decoration: none; cursor:pointer;}
+
+@keyframes heartbeat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes slideDown { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+/* --- 화면 진동 효과 --- */
+@keyframes shake-hard {
+    0% { transform: translate(0px, 0px) rotate(0deg); }
+    10% { transform: translate(-10px, -10px) rotate(-1deg); }
+    20% { transform: translate(-10px, 10px) rotate(1deg); }
+    30% { transform: translate(10px, 10px) rotate(0deg); }
+    40% { transform: translate(10px, -10px) rotate(1deg); }
+    50% { transform: translate(-10px, 10px) rotate(-1deg); }
+    60% { transform: translate(-10px, -10px) rotate(0deg); }
+    70% { transform: translate(10px, 10px) rotate(-1deg); }
+    80% { transform: translate(-5px, -5px) rotate(1deg); }
+    90% { transform: translate(5px, 5px) rotate(0deg); }
+    100% { transform: translate(0px, 0px) rotate(0deg); }
+}
+
+.shaking {
+    animation: shake-hard 0.5s;
+    animation-iteration-count: 1;
+}
+
+/* --- 파국 게이지 (Doom Gauge) --- */
+.doom-container {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    width: 300px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.7);
+    border: 3px solid #ff0000;
+    border-radius: 20px;
+    z-index: 100;
+    overflow: hidden;
+    box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+}
+
+.doom-label {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    color: white;
+    font-weight: bold;
+    line-height: 40px;
+    z-index: 2;
+    text-shadow: 2px 2px 4px #000;
+}
+
+.doom-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #ff8a00, #e52e71);
+    width: 0%; /* JS로 제어 */
+    transition: width 0.5s ease-out;
+}

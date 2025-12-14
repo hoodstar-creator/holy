@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>너만 모르는 우리들의 비밀</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body onclick="userInteracted()">
+    
+    <div class="main-container" style="background-image: url('{{ url_for('static', filename='images/bg_office.png') }}');">
+        <div class="title-logo" onclick="clickHidden()">
+            너만 모르는<br>
+            <span style="color:#ff69b4;">우리들의 비밀</span>
+        </div>
+        
+        <div class="btn-group">
+            <a href="{{ url_for('start_game') }}" class="start-btn-large">GAME START</a>
+            <div class="ach-btn" onclick="openModal()"><i class="fas fa-trophy"></i></div>
+            <div class="ach-btn" onclick="openGallery()"><i class="fas fa-images"></i></div>
+        </div>
+
+        <div style="margin-top:20px; color:white;">© 2025 Digital Contents</div>
+    </div>
+
+    <div class="modal-overlay" id="achModal">
+        <div class="modal-box">
+            <div class="modal-close" onclick="closeModal()">&times;</div>
+            <h2 style="text-align:center; color:#ff69b4; margin-bottom:20px;">🏆 도전과제 목록 🏆</h2>
+            <div id="achListContainer">
+                {% if achievement_list %}
+                    {% for ach in achievement_list %}
+                    <div class="ach-item" id="row_{{ ach.id }}">
+                        <div class="ach-icon">🔒</div>
+                        <div class="ach-text">
+                            <h3>{% if ach.hidden %}???{% else %}{{ ach.title }}{% endif %}</h3>
+                            <p>{% if ach.hidden %}숨겨진 도전과제입니다.{% else %}{{ ach.desc }}{% endif %}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="galleryModal">
+        <div class="modal-box" style="width: 1000px; max-width: 90%;">
+            <div class="modal-close" onclick="closeGallery()">&times;</div>
+            <h2 style="text-align:center; color:#ff69b4; margin-bottom:20px;">📷 인물 갤러리 📷</h2>
+            
+            <div class="gallery-grid">
+                {% if characters %}
+                    {% for key, char in characters.items() %}
+                    <div class="char-card">
+                        <img src="{{ url_for('static', filename='images/' + char.img) }}" alt="{{ char.name }}">
+                        <div class="char-info">
+                            <h3>{{ char.name }}</h3>
+                            <p>{{ char.desc }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div id="toast" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#333; color:white; padding:15px 30px; border-radius:30px; z-index:2000; border:2px solid #ff69b4;">
+        🏆 도전과제 달성: <span id="toast-title"></span>
+    </div>
+
+    <audio id="bgm" loop>
+        <source src="{{ url_for('static', filename='sound/bgm.mp3') }}" type="audio/mpeg">
+    </audio>
+
+    <script>
+        // --- BGM 제어 로직 (수정됨) ---
+        const bgm = document.getElementById("bgm");
+
+        // 페이지 로드 시 실행
+        window.addEventListener("DOMContentLoaded", () => {
+            bgm.volume = 0.5;
+            
+            // 1. 저장된 시간 불러오기
+            const savedTime = sessionStorage.getItem("bgm_time");
+            if (savedTime) {
+                bgm.currentTime = parseFloat(savedTime);
+            }
+
+            // 2. 재생 시도 (HTML autoplay 대신 JS로 실행)
+            bgm.play().catch(error => {
+                console.log("자동 재생 막힘: 사용자 클릭 대기");
+            });
+        });
+
+        // 페이지 이동 직전 시간 저장
+        window.addEventListener("beforeunload", () => {
+            if (!bgm.paused) {
+                sessionStorage.setItem("bgm_time", bgm.currentTime);
+            }
+        });
+
+        // 화면 클릭 시 재생 (브라우저 정책 대응)
+        function userInteracted() {
+            if (bgm.paused) {
+                bgm.play();
+            }
+        }
+
+        // --- 기존 로직들 ---
+        let savedData = {};
+        try {
+            const raw = localStorage.getItem('secretGameAch');
+            if(raw) savedData = JSON.parse(raw);
+        } catch(e) { console.log(e); }
+
+        const achList = {{ achievement_list | tojson | safe }};
+
+        function openModal() { document.getElementById('achModal').style.display = 'flex'; renderAchievements(); }
+        function closeModal() { document.getElementById('achModal').style.display = 'none'; }
+        function openGallery() { document.getElementById('galleryModal').style.display = 'flex'; }
+        function closeGallery() { document.getElementById('galleryModal').style.display = 'none'; }
+
+        function renderAchievements() {
+            if(!achList) return;
+            achList.forEach(ach => {
+                const row = document.getElementById('row_' + ach.id);
+                if (row && savedData[ach.id]) {
+                    row.classList.add('unlocked');
+                    row.querySelector('.ach-icon').innerHTML = '🏆';
+                    row.querySelector('h3').innerText = ach.title;
+                    row.querySelector('p').innerText = ach.desc;
+                }
+            });
+        }
+
+        let clickCount = 0;
+        function clickHidden() {
+            clickCount++;
+            if (clickCount === 10) {
+                unlockHidden('ach_hidden', '???', '메인 화면의 비밀을 풀었다.');
+            }
+        }
+        function unlockHidden(id, title, desc) {
+            if (!savedData[id]) {
+                savedData[id] = true;
+                localStorage.setItem('secretGameAch', JSON.stringify(savedData));
+                const toast = document.getElementById('toast');
+                document.getElementById('toast-title').innerText = "메인 화면의 비밀 (히든)";
+                toast.style.display = 'block';
+                setTimeout(() => { toast.style.display = 'none'; }, 3000);
+            }
+        }
+    </script>
+</body>
+</html>
